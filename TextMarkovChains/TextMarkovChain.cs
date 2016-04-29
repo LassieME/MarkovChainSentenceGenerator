@@ -1,12 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Text;
 using System.Xml;
 
 namespace TextMarkovChains
 {
-    public class TextMarkovChain
+    public class TextMarkovChain : IMarkovChain
     {
         private Dictionary<string, Chain> chains;
         private Chain head;
@@ -100,6 +99,7 @@ namespace TextMarkovChains
         {
             StringBuilder s = new StringBuilder();
             Chain nextString = head.getNextChain();
+            if(nextString == null) return generateSentence();
             while (nextString.word != "!" && nextString.word != "?" && nextString.word != ".")
             {
                 s.Append(nextString.word);

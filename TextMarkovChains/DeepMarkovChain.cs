@@ -1,11 +1,9 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
+﻿using System.Collections.Generic;
 using System.Text;
 
 namespace TextMarkovChains
 {
-    public class DeepMarkovChain
+    public class DeepMarkovChain : IMarkovChain
     {
         /* Order of action:
          * Add first word to header chain
@@ -76,6 +74,7 @@ namespace TextMarkovChains
             StringBuilder s = new StringBuilder();
 
             DoubleChain currentString = head.getNextWord();
+            if (currentString == null) return generateSentence();
             DoubleChain nextString = head.getNextNextWord(currentString);
             DoubleChain nextNextString = currentString.getNextNextWord(nextString);
             s.Append(currentString.text);

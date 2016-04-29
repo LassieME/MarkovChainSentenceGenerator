@@ -1,15 +1,17 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 using System.Xml;
 
-namespace TextMarkovChains
+namespace KiteBot
 {
-    public class MultiDeepMarkovChain : IMarkovChain
+    public class MultiDeepMarkovChain
     {
         private Dictionary<string, Chain> chains;
         private Chain head;
         private int depth;
+        private string[] currentChains;
 
         /// <summary>
         /// Creates a new multi-deep Markov Chain with the depth passed in
@@ -47,7 +49,7 @@ namespace TextMarkovChains
                     for (int end = 2; end < depth + 2 && end + start <= sentence.Length; end++)
                     {
                         valuesToAdd = new string[end];
-                        for (int j = start; j < start + end ; j++)
+                        for (int j = start; j < start + end; j++)
                             valuesToAdd[j - start] = sentence[j];
                         addWord(valuesToAdd);
                     }
@@ -70,7 +72,7 @@ namespace TextMarkovChains
             foreach (XmlNode xn in root.ChildNodes)
             {
                 string text = xn.Attributes["Text"].Value.ToString();
-                if(!chains.ContainsKey(text))
+                if (!chains.ContainsKey(text))
                     chains.Add(text, new Chain() { text = text });
             }
 
@@ -91,7 +93,7 @@ namespace TextMarkovChains
                     nextWords.Add(topWord);
                     //nextWords.Add(currentNode.Attributes["Text"].Value.ToString());
                     XmlNode parentTrackingNode = currentNode;
-                    while(parentTrackingNode.Attributes["Text"].Value.ToString() != topWord)
+                    while (parentTrackingNode.Attributes["Text"].Value.ToString() != topWord)
                     {
                         nextWords.Insert(1, parentTrackingNode.Attributes["Text"].Value.ToString());
                         parentTrackingNode = parentTrackingNode.ParentNode;
@@ -135,7 +137,7 @@ namespace TextMarkovChains
             Chain firstChainInList = chains[words[0]];
             firstChainInList.addWords(chainsList.ToArray(), count);
         }
-        
+
         /// <summary>
         /// Determines if this Markov Chain is ready to begin generating sentences
         /// </summary>
@@ -151,61 +153,66 @@ namespace TextMarkovChains
         /// <returns></returns>
         public string generateSentence()
         {
-            StringBuilder sb = new StringBuilder();
-            string[] currentChains = new string[depth];
-            currentChains[0] = head.getNextWord().text;
-            if (currentChains[0] == null) return generateSentence();
-            sb.Append(currentChains[0]);
-            string[] temp;
-            bool doneProcessing = false;
-            for (int i = 1; i < depth; i++)
-            {
-                //Generate the first row
-                temp = new string[i];
-                for (int j = 0; j < i; j++)
-                    temp[j] = currentChains[j];
-                currentChains[i] = head.getNextWord(temp).text;
-                if (currentChains[i] == "."
-                    || currentChains[i] == "?"
-                    || currentChains[i] == "!")
+                StringBuilder sb = new StringBuilder();
+            currentChains = new string[depth];
+                currentChains[0] = head.getNextWord().text;
+                sb.Append(currentChains[0]);
+                string[] temp;
+                bool doneProcessing = false;
+                for (int i = 1; i < depth; i++)
                 {
-                    doneProcessing = true;
+                    //Generate the first row
+                    temp = new string[i];
+                    for (int j = 0; j < i; j++)
+                    {
+                        temp[j] = currentChains[j];
+                    }
+                    if (temp[0].Equals(".") || temp[0].Equals("!") || temp[0].Equals("?"))
+                    {
+                        return generateSentence();
+                    }
+                    currentChains[i] = head.getNextWord(temp).text;
+                    if (currentChains[i] == "."
+                        || currentChains[i] == "?"
+                        || currentChains[i] == "!")
+                    {
+                        doneProcessing = true;
+                        sb.Append(currentChains[i]);
+                        break;
+                    }
+                    sb.Append(" ");
                     sb.Append(currentChains[i]);
-                    break;
                 }
-                sb.Append(" ");
-                sb.Append(currentChains[i]);
-            }
 
-            int breakCounter = 0;
-            while (!doneProcessing)
-            {
-                for (int j = 1; j < depth; j++)
-                    currentChains[j - 1] = currentChains[j];
-                Chain newHead = chains[currentChains[0]];
-                temp = new string[depth - 2];
-                for (int j = 1; j < depth - 1; j++)
-                    temp[j - 1] = currentChains[j];
-
-                currentChains[depth - 1] = newHead.getNextWord(temp).text;
-                if (currentChains[depth - 1] == "." ||
-                    currentChains[depth - 1] == "?" ||
-                    currentChains[depth - 1] == "!")
+                int breakCounter = 0;
+                while (!doneProcessing)
                 {
+                    for (int j = 1; j < depth; j++)
+                        currentChains[j - 1] = currentChains[j];
+                    Chain newHead = chains[currentChains[0]];
+                    temp = new string[depth - 2];
+                    for (int j = 1; j < depth - 1; j++)
+                        temp[j - 1] = currentChains[j];
+
+                    currentChains[depth - 1] = newHead.getNextWord(temp).text;
+                    if (currentChains[depth - 1] == "." ||
+                        currentChains[depth - 1] == "?" ||
+                        currentChains[depth - 1] == "!")
+                    {
+                        sb.Append(currentChains[depth - 1]);
+                        break;
+                    }
+                    sb.Append(" ");
                     sb.Append(currentChains[depth - 1]);
-                    break;
+
+                    breakCounter++;
+                    if (breakCounter >= 50) //This is still relatively untested software.  Better safe than sorry :)
+                        break;
                 }
-                sb.Append(" ");
-                sb.Append(currentChains[depth - 1]);
-
-                breakCounter++;
-                if (breakCounter >= 50) //This is still relatively untested software.  Better safe than sorry :)
-                    break;
-            }
 
 
-            sb[0] = char.ToUpper(sb[0]);
-            return sb.ToString();
+                sb[0] = char.ToUpper(sb[0]);
+                return sb.ToString();
         }
 
         public List<string> getNextLikelyWord(string previousText)
@@ -216,7 +223,7 @@ namespace TextMarkovChains
             previousText = previousText.ToLower();
             previousText = previousText.Replace("/", "").Replace("\\", "").Replace("[]", "").Replace(",", "");
             previousText = previousText.Replace("\r\n\r\n", " ").Replace("\r", "").Replace("\n", " "); //The first line is a hack to fix two \r\n (usually a <p> on a website)
-                        
+
             if (previousText == string.Empty)
             {
                 //Assume start of sentence
@@ -254,17 +261,17 @@ namespace TextMarkovChains
                 {
                     Chain headerChain = chains[previousWords[0]];
                     string[] sadPreviousWords = new string[previousWords.Length - 1]; //They are sad because I'm allocating extra memory for a slightly different array and there's probably a better way but I'm lazy :(
-                    for(int i=1; i<previousWords.Length; i++)
-                        sadPreviousWords[i -1] = previousWords[i];
+                    for (int i = 1; i < previousWords.Length; i++)
+                        sadPreviousWords[i - 1] = previousWords[i];
                     List<ChainProbability> nextChains = headerChain.getPossibleNextWords(sadPreviousWords);
                     nextChains.Sort((x, y) =>
-                        {
-                            return x.count - y.count;
-                        });
+                    {
+                        return x.count - y.count;
+                    });
                     foreach (ChainProbability cp in nextChains)
                         results.Add(cp.chain.text);
                 }
-                catch (Exception e)
+                catch (Exception)
                 {
                     return new List<string>();
                 }
@@ -278,25 +285,18 @@ namespace TextMarkovChains
         /// <param name="path">The file path to save to.</param>
         public void save(string path)
         {
-            XmlDocument xd = getXmlDocument();
-            xd.Save(path);
-        }
-
-        /// <summary>
-        /// Get the data for this Markov Chain as an XmlDocument object.
-        /// </summary>
-        /// <returns></returns>
-        public XmlDocument getXmlDocument()
-        {
-            XmlDocument xd = new XmlDocument();
-            XmlElement root = xd.CreateElement("Chains");
+            XmlDocument xmlDocument = new XmlDocument();
+            XmlElement root = xmlDocument.CreateElement("Chains");
             root.SetAttribute("Depth", this.depth.ToString());
-            xd.AppendChild(root);
+            xmlDocument.AppendChild(root);
 
             foreach (string key in chains.Keys)
-                root.AppendChild(chains[key].getXml(xd));
+                root.AppendChild(chains[key].getXml(xmlDocument));
 
-            return xd;
+            xmlDocument.Save(path);
+            xmlDocument = null;
+            GC.Collect();
+            GC.WaitForPendingFinalizers();
         }
 
         private class Chain
@@ -311,29 +311,29 @@ namespace TextMarkovChains
                 fullCount = 0;
             }
 
-            internal void addWords(Chain[] c, int count=1)
+            internal void addWords(Chain[] c, int count = 1)
             {
                 if (c.Length == 0)
                     throw new ArgumentException("The array of chains passed in is of zero length.");
                 if (c.Length == 1)
                 {
-                    this.fullCount += count;
-                    if (!this.nextNodes.ContainsKey(c[0].text))
-                        this.nextNodes.Add(c[0].text, new ChainProbability(c[0], count));
+                    fullCount += count;
+                    if (!nextNodes.ContainsKey(c[0].text))
+                        nextNodes.Add(c[0].text, new ChainProbability(c[0], count));
                     else
-                        this.nextNodes[c[0].text].count += count;
+                        nextNodes[c[0].text].count += count;
                     return;
                 }
 
                 ChainProbability nextChain = nextNodes[c[0].text];
                 for (int i = 1; i < c.Length - 1; i++)
                     nextChain = nextChain.getNextNode(c[i].text);
-                nextChain.addWord(c[c.Length - 1],count);
+                nextChain.addWord(c[c.Length - 1], count);
             }
 
             internal Chain getNextWord()
             {
-                int currentCount = RandomHandler.random.Next(fullCount) + 1;
+                int currentCount = RandomHandler.random.Next(fullCount);
                 foreach (string key in nextNodes.Keys)
                 {
                     currentCount -= nextNodes[key].count;
@@ -347,16 +347,19 @@ namespace TextMarkovChains
             {
                 ChainProbability currentChain = nextNodes[words[0]];
                 for (int i = 1; i < words.Length; i++)
+                {
                     currentChain = currentChain.getNextNode(words[i]);
+                }
 
-                int currentCount = RandomHandler.random.Next(currentChain.count) + 1;
+                List<string> list = new List<string>();
                 foreach (string key in currentChain.nextNodes.Keys)
                 {
-                    currentCount -= currentChain.nextNodes[key].count;
-                    if (currentCount <= 0)
-                        return currentChain.nextNodes[key].chain;
+                    for (int i = 0; i < currentChain.nextNodes[key].count; i++)
+                    {
+                        list.Add(key);
+                    }
                 }
-                return null;
+                return currentChain.nextNodes[list[RandomHandler.random.Next(list.Count)]].chain;
             }
 
             internal List<ChainProbability> getPossibleNextWords(string[] words)
@@ -376,7 +379,7 @@ namespace TextMarkovChains
 
                 foreach (string key in currentChain.nextNodes.Keys)
                     results.Add(currentChain.nextNodes[key]);
-                
+
                 return results;
             }
 
